@@ -32,6 +32,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.SimpleTimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -54,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar skb_timeStamp;
     private TextView txv_timeStampValue;
     private TextView text;
+    private TextView txv_log;
     private Handler handler;
     private int count;
 
@@ -64,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     private File mAudioFile;
     private ExecutorService mExecutorService;
     private static final String TAG = "MainActivity";
+
+    private Calendar calendar;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,6 +81,10 @@ public class MainActivity extends AppCompatActivity {
         InitialDefaultName();
         ConnectCheck();
         inputName();
+
+        //get time
+        SimpleTimeZone pdt = new SimpleTimeZone(8 * 60 * 60 * 1000, "Asia/Taipei");
+        calendar = new GregorianCalendar(pdt);
 
         mBuffer = new byte[BUFFER_SIZE];
         mAudioFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
@@ -112,6 +123,7 @@ public class MainActivity extends AppCompatActivity {
                     count=0;
                     handler.post(RecordingThread);
                     skb_timeStamp.setClickable(false);
+                    text.setText(" ");
                     Log.d("start","start to send");
                 }
                 else{
@@ -129,28 +141,62 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             if(!isRecording) {
-                isRecording=true;
-                count++;
-                mAudioUtil.recordData();
-                mAudioUtil.startRecord();
-                Log.d("start","start to send again");
+                StartRecording();
+
             }
             else{
-                isRecording=false;
-                mAudioUtil.stopRecord();
-                mAudioUtil.convertWavFile();
-                client.sendAudioFile(AudioUtil.getWavFileDir(),AudioUtil.getPcmFileDir(),count);
-                Log.d("output","sending 20sec wav");
-
-                isRecording=true;
-                count++;
-                mAudioUtil.recordData();
-                mAudioUtil.startRecord();
+                EndRecording();
+                StartRecording();
 
             }
             handler.postDelayed(this,timeStamp*1000);
         }
     };
+    //start recording wav file
+    private void StartRecording(){
+        isRecording = true;
+        //set start timestamp
+        Date trialTime = new Date();
+        calendar.setTime(trialTime);
+        String startTime = calendar.get(Calendar.HOUR_OF_DAY) + ":" +
+                calendar.get(Calendar.MINUTE) + ":" +
+                calendar.get(Calendar.SECOND);
+        text.append("Start time :" +startTime);
+
+        count++;
+        mAudioUtil.recordData();
+        mAudioUtil.startRecord();
+        Log.d("start","start to send again");
+
+
+    }
+    //end recording wav file and send server
+    private void EndRecording(){
+        isRecording=false;
+        //set end timestamp
+        Date trialTime = new Date();
+        calendar.setTime(trialTime);
+        String endTime = calendar.get(Calendar.HOUR_OF_DAY) + ":" +
+                calendar.get(Calendar.MINUTE) + ":" +
+                calendar.get(Calendar.SECOND);
+        text.append("End time :" +endTime);
+
+        mAudioUtil.stopRecord();
+        mAudioUtil.convertWavFile();
+
+        //send file to server
+        client.sendAudioFile(AudioUtil.getWavFileDir(),AudioUtil.getPcmFileDir(),count);
+        Log.d("output","sending 20sec wav");
+
+        isRecording=true;
+        count++;
+        mAudioUtil.recordData();
+        mAudioUtil.startRecord();
+
+        //build a new connection
+
+
+    }
 
     //initial default name and IP
     public void InitialDefaultName() {
@@ -273,7 +319,6 @@ public class MainActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -288,7 +333,6 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();

@@ -59,6 +59,7 @@ public class ClientSocket extends AsyncTask<String, Void, String> {
 
                         os.flush();
 
+
                       /*  File pcmFile = new File(pcmFileDir);
                         byte[] mybytearrayPCM = new byte[(int) pcmFile.length()];
                         FileInputStream fis2 = new FileInputStream(pcmFile);
@@ -74,6 +75,8 @@ public class ClientSocket extends AsyncTask<String, Void, String> {
                         bis.close();
                         fis.close();
                         socket.close();
+
+                        //build new connection 
                         socket = new Socket(serverIP, serverPort);
 
                     } catch (IOException e) {
