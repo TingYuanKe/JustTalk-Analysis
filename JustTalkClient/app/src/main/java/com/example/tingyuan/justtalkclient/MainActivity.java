@@ -30,8 +30,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     public File dir_arguements;
     public File file_arguements;
 
+    private DataOutputStream out_timestamp;
     private DataOutputStream out_arguments;
     private DataInputStream in_arguments;
 
@@ -163,6 +167,25 @@ public class MainActivity extends AppCompatActivity {
                 calendar.get(Calendar.SECOND);
         text.append("Start time :" +startTime);
 
+        //create timestamp file
+        try {
+            String dir_path = Environment.getExternalStorageDirectory().getAbsolutePath() + "/record";
+            File dir = new File(dir_path);
+            if (!dir.exists()) {
+                dir.mkdir();
+            }
+            File file_acc = new File(dir, "raw_acc_buffer.txt");
+            if (file_acc.exists()) {
+                file_acc.delete();
+            }
+            out_timestamp = new DataOutputStream(new FileOutputStream(file_acc, true));
+
+            //write start timestamp
+            out_timestamp.write(startTime.getBytes());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         count++;
         mAudioUtil.recordData();
         mAudioUtil.startRecord();
@@ -181,12 +204,44 @@ public class MainActivity extends AppCompatActivity {
                 calendar.get(Calendar.SECOND);
         text.append("End time :" +endTime);
 
+        //write end timestamp
+        try {
+            out_timestamp.write(endTime.getBytes());
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        //copy buffer and send
+        String dir_path = Environment.getExternalStorageDirectory().getAbsolutePath() + "/record";
+        try (InputStream in = new FileInputStream(dir_path + "/raw_acc_buffer.txt")) {
+            try (OutputStream out = new FileOutputStream(dir_path + "/raw_acc.txt")) {
+                // Transfer bytes from in to out
+                byte[] buf = new byte[1024];
+                int len;
+                while ((len = in.read(buf)) > 0) {
+                    out.write(buf, 0, len);
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         mAudioUtil.stopRecord();
         mAudioUtil.convertWavFile();
 
-        //send file to server
-        client.sendAudioFile(AudioUtil.getWavFileDir(),AudioUtil.getPcmFileDir(),count);
-        Log.d("output","sending 20sec wav");
+        //send file to server and close file
+        try {
+            //send file via socket
+            client.sendAudioFile(AudioUtil.getWavFileDir(),dir_path,count);
+            Log.d("output","sending 20sec wav");
+
+            out_timestamp.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
         isRecording=true;
         count++;
@@ -200,7 +255,7 @@ public class MainActivity extends AppCompatActivity {
 
     //initial default name and IP
     public void InitialDefaultName() {
-        dir_path_arguements = Environment.getExternalStorageDirectory().getAbsolutePath() + "/AbsAccCollection";
+        dir_path_arguements = Environment.getExternalStorageDirectory().getAbsolutePath() + "/record";
         dir_arguements = new File(dir_path_arguements);
         if (!dir_arguements.exists()) {
             dir_arguements.mkdir();
@@ -313,26 +368,8 @@ public class MainActivity extends AppCompatActivity {
         return client;
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
 
-        return super.onOptionsItemSelected(item);
-    }
     @Override
     protected void onDestroy() {
         super.onDestroy();

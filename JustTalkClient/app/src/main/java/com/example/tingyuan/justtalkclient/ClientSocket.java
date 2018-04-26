@@ -6,6 +6,7 @@ package com.example.tingyuan.justtalkclient;
 
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.util.Log;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -36,7 +37,17 @@ public class ClientSocket extends AsyncTask<String, Void, String> {
         serverPort = port;
         clientName = name;
     }
-    public void sendAudioFile(final String wavFileDir,final String pcmFileDir,final int count) {
+
+    /**
+     *
+     * @param wavFileDir
+     * WAV file Dir
+     * @param timestampFileDir
+     * Timestamp txt file Dir
+     * @param count
+     * number of wavfile in the period
+     */
+    public void sendAudioFile(final String wavFileDir,final String timestampFileDir,final int count) {
 
         if (connected) {
             new Thread(new Runnable() {
@@ -48,28 +59,24 @@ public class ClientSocket extends AsyncTask<String, Void, String> {
                         DataOutputStream os=new DataOutputStream(s);
                         os.writeUTF(clientName+String.valueOf(count));
                         os.flush();
+
                         //sending Wav File
                         File wavFile = new File(wavFileDir);
                         byte[] mybytearrayWav = new byte[(int) wavFile.length()];
                         FileInputStream fis = new FileInputStream(wavFile);
                         BufferedInputStream bis = new BufferedInputStream(fis);
                         bis.read(mybytearrayWav, 0, mybytearrayWav.length);
-                        System.out.println("Sending WAV:" + clientName + "(" + mybytearrayWav.length + " bytes)");
+                        Log.d("wav","Sending WAV:" + clientName + "(" + mybytearrayWav.length + " bytes)");
                         os.write(mybytearrayWav, 0, mybytearrayWav.length);
-
                         os.flush();
 
-
-                      /*  File pcmFile = new File(pcmFileDir);
-                        byte[] mybytearrayPCM = new byte[(int) pcmFile.length()];
-                        FileInputStream fis2 = new FileInputStream(pcmFile);
-                        BufferedInputStream bis2 = new BufferedInputStream(fis2);
-                        bis2.read(mybytearrayPCM, 0, mybytearrayPCM.length);
-                        System.out.println("Sending PCM:" + clientName + "(" + mybytearrayPCM.length + " bytes)");
-                        os.write(mybytearrayPCM, 0, mybytearrayPCM.length);
-                        os.flush();
-                        */
-                        System.out.println("Done.");
+                        //send timestamp file
+                        File timestampFile = new File (timestampFileDir);
+                        byte[] mybytearray = new byte[(int) timestampFile.length()];
+                        fis = new FileInputStream(wavFile);
+                        bis = new BufferedInputStream(fis);
+                        bis.read(mybytearray, 0, mybytearray.length);
+                        os.write(mybytearray, 0, mybytearray.length);
 
                         os.close();
                         bis.close();
